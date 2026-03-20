@@ -1,0 +1,119 @@
+package your.package.skia.font;
+
+import io.github.humbleui.skija.*;
+import net.minecraft.client.MinecraftClient;
+
+import java.io.File;
+import java.nio.file.Files;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+public class Fonts {
+
+    private static final String REGULAR = "Inter-Regular.ttf";
+    private static final String MEDIUM = "Inter-Medium.ttf";
+    private static final String ICON_FILL = "MaterialSymbolsRounded_Fill.ttf";
+    private static final String ICON = "MaterialSymbolsRounded.ttf";
+
+    private static FontMgr fontMgr = FontMgr.getDefault();
+    private static final FontStyle NORMAL_STYLE = FontStyle.NORMAL;
+    private static final Map<String, Typeface> customFonts = new HashMap<>();
+    private static File fontDir;
+
+    public static void loadAll() {
+        FontHelper.preloadFonts(REGULAR, MEDIUM, ICON_FILL, ICON);
+        loadCustomFonts();
+    }
+
+    private static void loadCustomFonts() {
+        try {
+            fontDir = new File(MinecraftClient.getInstance().runDirectory, "yourmod/fonts");
+            if (!fontDir.exists()) {
+                fontDir.mkdirs();
+            }
+
+            customFonts.clear();
+            File[] fontFiles = fontDir.listFiles((dir, name) ->
+                name.toLowerCase().endsWith(".ttf") ||
+                    name.toLowerCase().endsWith(".otf"));
+
+            if (fontFiles != null) {
+                FontMgr fontMgr = FontMgr.getDefault();
+
+                for (File fontFile : fontFiles) {
+                    try {
+                        byte[] fontData = Files.readAllBytes(fontFile.toPath());
+                        Data skData = Data.makeFromBytes(fontData);
+                        Typeface typeface = fontMgr.makeFromData(skData);
+                        if (typeface != null) {
+                            String fontName = fontFile.getName();
+                            customFonts.put(fontName, typeface);
+                            System.out.println("Loaded custom font: " + fontName);
+                        }
+                    } catch (Exception e) {
+                        System.err.println("Failed to load font: " + fontFile.getName() + ", error: " + e.getMessage());
+                    }
+                }
+                System.out.println("Total custom fonts loaded: " + customFonts.size());
+            }
+        } catch (Exception e) {
+            System.err.println("Failed to load custom fonts: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    private static Font createSystemFont(String familyName, float size) {
+        try {
+            Typeface typeface = fontMgr.matchFamilyStyle(familyName, NORMAL_STYLE);
+            if (typeface == null) {
+                return FontHelper.load(REGULAR, size);
+            }
+            return new Font(typeface, size);
+        } catch (Exception e) {
+            return FontHelper.load(REGULAR, size);
+        }
+    }
+
+    public static Font getRegular(float size) {
+        return FontHelper.load(REGULAR, size);
+    }
+
+    public static Font getMedium(float size) {
+        return FontHelper.load(MEDIUM, size);
+    }
+
+    public static Font getIconFill(float size) {
+        return FontHelper.load(ICON_FILL, size);
+    }
+
+    public static Font getIcon(float size) {
+        return FontHelper.load(ICON, size);
+    }
+
+    public static String[] getCustomFontNames() {
+        List<String> fontNames = new ArrayList<>();
+        for (String fontFile : customFonts.keySet()) {
+            String fontName = fontFile;
+            if (fontName.toLowerCase().endsWith(".ttf") || fontName.toLowerCase().endsWith(".otf")) {
+                fontName = fontName.substring(0, fontName.lastIndexOf('.'));
+            }
+            fontNames.add(fontName);
+        }
+        return fontNames.toArray(new String[0]);
+    }
+
+    public static Font getCustomFont(String fontName, float size) {
+        for (String existingFont : customFonts.keySet()) {
+            String existingFontName = existingFont;
+            if (existingFontName.toLowerCase().endsWith(".ttf") || existingFontName.toLowerCase().endsWith(".otf")) {
+                existingFontName = existingFontName.substring(0, existingFontName.lastIndexOf('.'));
+            }
+            if (fontName.equals(existingFontName)) {
+                return new Font(customFonts.get(existingFont), size);
+            }
+        }
+        return FontHelper.load(REGULAR, size);
+    }
+}

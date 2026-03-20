@@ -5,7 +5,9 @@
 	"mixins": [],
 	"client": [
 		"TickMixin",
-		"KeyboardMixin"
+		"KeyboardMixin",
+		"RenderMixin",
+		"ClientMixin"
 	],
 	"server": [],
 	"injectors": {

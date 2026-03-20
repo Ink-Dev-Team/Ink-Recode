@@ -17,6 +17,9 @@ repositories {
 	maven {
 		url "https://packages.jetbrains.team/maven/p/skija/maven"
 	}
+	maven {
+		url "https://jitpack.io"
+	}
 	// Add repositories to retrieve artifacts from in here.
 	// You should only use this when depending on other mods because
 	// Loom adds the essential maven repositories to download Minecraft and libraries from automatically.
@@ -31,7 +34,13 @@ dependencies {
 	modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
 	
 	// Skija for 2D rendering
-	api "org.jetbrains.skija:skija-windows:0.93.6"
+	// 使用HumbleUI Skija作为统一的Skia实现
+	implementation "io.github.humbleui:skija-windows-x64:0.143.8"
+	implementation "io.github.humbleui:types:0.2.0"
+	
+	// LWJGL for OpenGL integration
+	implementation "org.lwjgl:lwjgl-opengl:3.3.3"
+	implementation "org.lwjgl:lwjgl:3.3.3"
 	
 	// Fabric API. This is technically optional, but you probably want it anyway.
 	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"

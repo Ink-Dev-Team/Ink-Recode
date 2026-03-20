@@ -1,6 +1,7 @@
 package com.ink.recode.event
 
 import com.ink.recode.event.events.TickEvent
+import com.ink.recode.event.events.RenderEvent
 import com.ink.recode.modules.*
 import com.ink.recode.Module
 import com.ink.recode.ModuleManager
@@ -29,5 +30,12 @@ object EventManager {
                 module.toggle()
             }
         }
+    }
+    @Listener
+    fun onRender(event: RenderEvent)
+    {
+        ModuleManager.modules
+            .filter{it.enabled}
+            .forEach{it.onRender(event)}
     }
 }

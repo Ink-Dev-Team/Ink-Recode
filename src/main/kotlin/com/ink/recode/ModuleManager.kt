@@ -12,11 +12,6 @@ object ModuleManager {
         EventBus.register(module)
     }
 
-    // 卸载模块的方法
-    fun unregister(module: Module) {
-        modules.remove(module)
-    }
-
     // 可选：根据名称查找模块
     fun getModule(name: String): Module? {
         return modules.find { it.name.equals(name, ignoreCase = true) }
