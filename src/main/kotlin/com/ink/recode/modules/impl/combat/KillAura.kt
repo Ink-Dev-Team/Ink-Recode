@@ -8,6 +8,10 @@ import com.ink.recode.event.events.TickEvent
 import com.ink.recode.render.FontManager
 import com.ink.recode.render.Skia
 import com.ink.recode.render.SkiaRenderer
+import com.ink.recode.utils.RotationManager
+import com.ink.recode.utils.RotationUtils
+import com.ink.recode.value.BooleanValue
+import com.ink.recode.value.NumberValue
 import io.github.humbleui.skija.Font
 import net.minecraft.client.MinecraftClient
 import net.minecraft.entity.Entity
@@ -36,19 +40,44 @@ object KillAura : Module("KillAura", "Automatic attack module", Category.COMBAT)
     private val range: Float by lazy { 5.0f }
     private val attackSpeed: Int by lazy { 10 } // 攻击间隔（tick）
     private val fov: Float by lazy { 180f }
+    
+    // SilentRotation 配置
+    private val silentRotationEnabled = BooleanValue("SilentRotation", true, "启用静音旋转")
+    private val rotationSpeed = NumberValue("RotationSpeed", 10f, 1f, 30f, 1f, "旋转速度")
+    private val rotationSmoothness = NumberValue("RotationSmoothness", 5f, 1f, 20f, 1f, "旋转平滑度")
+    private val silentRotationMode = BooleanValue("SilentRotationMode", true, "静音旋转模式")
+    
+    // 1.9 Mode 配置
+    private val mode19Enabled = BooleanValue("1.9Mode", false, "启用1.9模式")
+    private val cpsMin = NumberValue("CPSMin", 8f, 1f, 20f, 0.5f, "最小每秒攻击次数")
+    private val cpsMax = NumberValue("CPSMax", 12f, 1f, 20f, 0.5f, "最大每秒攻击次数")
+    
+    init {
+        this.enabled = true
+        this.key = GLFW.GLFW_KEY_R
+        
+        // 注册value到模块
+        values.add(silentRotationEnabled)
+        values.add(rotationSpeed)
+        values.add(rotationSmoothness)
+        values.add(silentRotationMode)
+        values.add(mode19Enabled)
+        values.add(cpsMin)
+        values.add(cpsMax)
+    }
 
     private var target: LivingEntity? = null
+    
     // Module 中的 mc 是 final，改为自定义 getter
     private val minecraft: MinecraftClient
         get() = MinecraftClient.getInstance()
 
     // 攻击冷却计时器
     private var attackTimer = 0
-
-    init {
-        this.enabled = true
-        this.key = GLFW.GLFW_KEY_R
-    }
+    
+    // CPS 随机延迟系统
+    private var nextAttackTime = 0L
+    private var lastAttackTime = 0L
 
     @Listener
     fun onTick(event: TickEvent) {
@@ -73,34 +102,39 @@ object KillAura : Module("KillAura", "Automatic attack module", Category.COMBAT)
 
         target = selectTarget(enemies)
 
+        // SilentRotation 集成
+        if (silentRotationEnabled.get() && target != null) {
+            val targetRotation = RotationUtils.getRotation(target!!)
+            RotationManager.setRotations(targetRotation, rotationSpeed.get(), rotationSmoothness.get())
+        } else if (!silentRotationEnabled.get()) {
+            RotationManager.reset()
+        }
+
         // 检查攻击条件
-        if (target != null && canAttack(target!!) && attackTimer <= 0) {
-            attackTarget(target!!)
-            attackTimer = attackSpeed // 重置冷却
+        if (target != null && canAttack(target!!)) {
+            if (mode19Enabled.get()) {
+                // 1.9 Mode: 使用CPS系统
+                val currentTime = System.currentTimeMillis()
+                if (currentTime >= nextAttackTime) {
+                    attackTarget(target!!)
+                    lastAttackTime = currentTime
+                    // 计算下一次攻击时间（随机延迟）
+                    val minDelay = (1000.0 / cpsMax.get()).toLong()
+                    val maxDelay = (1000.0 / cpsMin.get()).toLong()
+                    nextAttackTime = currentTime + minDelay + (Math.random() * (maxDelay - minDelay)).toLong()
+                }
+            } else {
+                // 传统模式: 使用攻击冷却
+                if (attackTimer <= 0) {
+                    attackTarget(target!!)
+                    attackTimer = attackSpeed
+                }
+            }
         }
     }
 
     @Listener
     override fun onRender(event: RenderEvent) {
-        if (!enabled) return
-        if (!SkiaRenderer.isInitialized() || target == null) return
-
-        try {
-            Skia.draw { canvas ->
-                val targetEntity = target!!
-                val screenPos = minecraft.gameRenderer.camera.pos
-
-                val x = 10f
-                val y = 10f
-
-                // 绘制目标信息面板
-                Skia.drawRoundedRect(x, y, 150f, 60f, 5f, Color(0, 0, 0, 150))
-                Skia.drawText(targetEntity.name?.string ?: "Unknown", x + 10f, y + 20f, Color(255, 255, 255), font)
-                Skia.drawText("HP: ${targetEntity.health.toInt()}", x + 10f, y + 40f, Color(255, 0, 0), font)
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
     }
 
     private fun findEnemies(): List<LivingEntity> {
@@ -164,8 +198,12 @@ object KillAura : Module("KillAura", "Automatic attack module", Category.COMBAT)
     private fun attackTarget(entity: LivingEntity) {
         val player = minecraft.player ?: return
 
-        // 瞄准目标
-        lookAtEntity(entity)
+        // 如果启用静音旋转，不直接调用lookAtEntity
+        // 旋转由RotationManager在tick事件中处理
+        if (!silentRotationMode.get()) {
+            // 直接瞄准目标
+            lookAtEntity(entity)
+        }
 
         // 执行攻击
         minecraft.interactionManager?.attackEntity(player, entity)
@@ -191,5 +229,10 @@ object KillAura : Module("KillAura", "Automatic attack module", Category.COMBAT)
         // 设置玩家视角
         player.yaw = yaw.toFloat()
         player.pitch = pitch.toFloat()
+    }
+    
+    override fun onDisable() {
+        println("[KillAura] onDisable called, resetting rotation")
+        RotationManager.reset()
     }
 }

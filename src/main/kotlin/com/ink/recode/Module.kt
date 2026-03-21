@@ -1,8 +1,9 @@
 package com.ink.recode
 
 import java.awt.color.*;
-import com.ink.recode.Category;
+import com.ink.recode.Category
 import com.ink.recode.event.events.RenderEvent
+import com.ink.recode.value.Value
 import net.minecraft.client.MinecraftClient
 
 
@@ -10,6 +11,9 @@ open class Module(var name: String, var description: String, var category: Categ
     var enabled=false
     var key=-1
     val mc= MinecraftClient.getInstance()
+    
+    val values = mutableListOf<Value<*>>()
+    
     open fun onTick()
     {
 
