@@ -64,9 +64,6 @@ class BooleanValue(
     }
 }
 
-/**
- * 数值：支持 min/max/step，内部用 Float，需要整数可再包一层或 .toInt()
- */
 class NumberValue(
     name: String,
     default: Float,
@@ -83,12 +80,9 @@ class NumberValue(
         value = v.coerceIn(min, max)
     }
 
-    /** 按 step 增加 */
     fun add() {
         value = (value + step).coerceIn(min, max)
     }
-
-    /** 按 step 减少 */
     fun sub() {
         value = (value - step).coerceIn(min, max)
     }
