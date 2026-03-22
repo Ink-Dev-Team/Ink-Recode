@@ -7,7 +7,9 @@
 		"TickMixin",
 		"KeyboardMixin",
 		"RenderMixin",
-		"ClientMixin"
+		"ClientMixin",
+		"ClientConnectionMixin",
+		"PlayerMixin"
 	],
 	"server": [],
 	"injectors": {

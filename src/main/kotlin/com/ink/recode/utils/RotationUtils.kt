@@ -8,11 +8,16 @@ import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
 
+/**
+ * 旋转角度数据类
+ * 用于Java互操作，提供getter方法
+ */
 data class Rotation(
-    val yaw: Float,
-    val pitch: Float
+    @JvmField val yaw: Float,
+    @JvmField val pitch: Float
 ) {
     companion object {
+        @JvmField
         val ZERO = Rotation(0f, 0f)
     }
 

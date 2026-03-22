@@ -4,155 +4,147 @@ import com.ink.recode.event.Listener
 import com.ink.recode.event.events.RenderEvent
 import com.ink.recode.event.events.TickEvent
 import net.minecraft.client.MinecraftClient
-import net.minecraft.entity.Entity
-import net.minecraft.util.math.MathHelper
-import net.minecraft.util.math.Vec3d
 import kotlin.math.abs
 
+/**
+ * 静默旋转管理器
+ * 实现原理：只修改发送给服务器的旋转角度，保持客户端视觉角度不变
+ */
 object RotationManager {
     
     private val mc = MinecraftClient.getInstance()
     
-    private var targetRotation: Rotation? = null
-    private var currentRotation: Rotation = Rotation.ZERO
-    private var lastRotation: Rotation = Rotation.ZERO
+    // 服务器旋转角度（发送给服务器的角度）
+    private var serverRotation: Rotation? = null
+    // 视觉旋转角度（玩家看到的角度）
+    private var visualRotation: Rotation = Rotation.ZERO
+    // 是否启用静默旋转
+    private var isSilentRotating: Boolean = false
+    // 旋转速度
     private var rotationSpeed: Float = 10f
     private var rotationSmoothness: Float = 5f
-    private var isRotating: Boolean = false
-    private var rotationTicks: Int = 0
     
+    /**
+     * 设置目标旋转角度（静默旋转）
+     * 只修改发送给服务器的角度，不改变玩家视觉角度
+     */
+    @JvmStatic
     fun setRotations(target: Rotation, speed: Float = 10f, smoothness: Float = 5f) {
-        println("[RotationManager] Setting target rotation: $target, speed: $speed, smoothness: $smoothness")
+        println("[RotationManager] Setting target rotation: $target, speed: $speed")
         
         val player = mc.player ?: return
         
         val clampedTarget = RotationUtils.clampRotation(target)
         
         if (!RotationUtils.validateRotation(clampedTarget)) {
-            println("[RotationManager] Invalid rotation detected, clamping")
-            targetRotation = RotationUtils.clampRotation(Rotation(player.yaw, player.pitch))
-        } else {
-            targetRotation = clampedTarget
+            println("[RotationManager] Invalid rotation detected")
+            return
         }
         
-        // 从玩家当前视角开始旋转
-        currentRotation = Rotation(player.yaw, player.pitch)
-        lastRotation = currentRotation
+        // 保存玩家当前视觉角度
+        visualRotation = Rotation(player.yaw, player.pitch)
         
+        // 设置服务器目标角度
+        serverRotation = clampedTarget
         rotationSpeed = speed
         rotationSmoothness = smoothness
-        isRotating = true
-        rotationTicks = 0
+        isSilentRotating = true
         
-        println("[RotationManager] Target rotation set: $targetRotation")
-        println("[RotationManager] Current rotation: $currentRotation")
-        println("[RotationManager] Distance to target: ${RotationUtils.getDistance(currentRotation, targetRotation!!)}")
+        println("[RotationManager] Silent rotation enabled")
+        println("[RotationManager] Visual rotation: $visualRotation")
+        println("[RotationManager] Server target: $serverRotation")
     }
     
-    fun getRotation(): Rotation {
-        return currentRotation
+    /**
+     * 获取发送给服务器的旋转角度
+     */
+    @JvmStatic
+    fun getServerRotation(): Rotation? {
+        return serverRotation
     }
     
+    /**
+     * 获取视觉旋转角度
+     */
+    @JvmStatic
+    fun getVisualRotation(): Rotation {
+        return visualRotation
+    }
+    
+    /**
+     * 是否正在静默旋转
+     */
+    @JvmStatic
+    fun isRotating(): Boolean {
+        return isSilentRotating && serverRotation != null
+    }
+    
+    /**
+     * 重置旋转状态
+     */
+    @JvmStatic
     fun reset() {
         println("[RotationManager] Resetting rotation")
-        targetRotation = null
-        currentRotation = Rotation.ZERO
-        lastRotation = Rotation.ZERO
-        isRotating = false
-        rotationTicks = 0
+        serverRotation = null
+        visualRotation = Rotation.ZERO
+        isSilentRotating = false
     }
     
-    fun isRotating(): Boolean {
-        return isRotating && targetRotation != null
-    }
-    
-    fun updateRotation() {
-        if (!isRotating || targetRotation == null) return
+    /**
+     * 更新旋转（每tick调用）
+     * 平滑过渡到目标角度
+     */
+    private fun updateRotation() {
+        if (!isSilentRotating || serverRotation == null) return
         
-        val player = mc.player ?: return
+        val currentServerRotation = serverRotation ?: return
         
-        rotationTicks++
-        
-        val startTime = System.nanoTime()
-        
+        // 平滑过渡到目标角度
         val smoothedRotation = RotationUtils.smooth(
-            currentRotation,
-            targetRotation!!,
+            currentServerRotation,
+            currentServerRotation,
             rotationSpeed
         )
         
-        val finalRotation = RotationUtils.smooth(
-            smoothedRotation,
-            targetRotation!!,
-            rotationSmoothness
-        )
+        serverRotation = smoothedRotation
         
-        lastRotation = currentRotation
-        currentRotation = finalRotation
-        
-        player.yaw = finalRotation.yaw
-        player.pitch = finalRotation.pitch
-        
-        val endTime = System.nanoTime()
-        val duration = (endTime - startTime) / 1000000.0 // 转换为毫秒
-        
-        if (duration > 1.0) {
-            println("[RotationManager] Performance warning: Rotation update took ${duration}ms")
-        }
-        
-        if (RotationUtils.isClose(currentRotation, targetRotation!!, 0.5f)) {
-            println("[RotationManager] Rotation completed in $rotationTicks ticks")
-            isRotating = false
-            targetRotation = null
-            rotationTicks = 0
+        // 检查是否接近目标
+        if (RotationUtils.isClose(currentServerRotation, currentServerRotation, 0.5f)) {
+            println("[RotationManager] Rotation completed")
+            isSilentRotating = false
         }
     }
     
-    fun applyMovementCorrection() {
-        if (!isRotating) return
+    /**
+     * 应用移动修正
+     * 当静默旋转时，修正移动方向以匹配旋转角度
+     */
+    private fun applyMovementCorrection() {
+        if (!isSilentRotating) return
         
         val player = mc.player ?: return
+        val serverRot = serverRotation ?: return
         
-        val input = mc.options
-        val forward = input.forwardKey.isPressed
-        val backward = input.backKey.isPressed
-        val left = input.leftKey.isPressed
-        val right = input.rightKey.isPressed
+        // 计算视觉角度与服务器角度的差值
+        val yawDiff = RotationUtils.calculateDelta(visualRotation.yaw, serverRot.yaw)
         
-        if (forward || backward || left || right) {
-            var moveX = 0.0
-            var moveZ = 0.0
-            
-            if (forward) moveZ -= 1.0
-            if (backward) moveZ += 1.0
-            if (left) moveX -= 1.0
-            if (right) moveX += 1.0
-            
-            val moveVector = Vec3d(moveX, 0.0, moveZ)
-            if (moveVector.lengthSquared() > 0.001) {
-                val normalizedMove = moveVector.normalize()
-                val movementAngle = Math.toDegrees(Math.atan2(-normalizedMove.x, normalizedMove.z)).toFloat()
-                val yawDifference = MathHelper.wrapDegrees(movementAngle - player.yaw)
-                
-                if (abs(yawDifference) > 45f) {
-                    val correctedYaw = player.yaw + yawDifference * 0.1f
-                    player.yaw = correctedYaw
-                    println("[RotationManager] Applied movement correction: $correctedYaw")
-                }
-            }
+        // 如果差值过大，应用修正
+        if (abs(yawDiff) > 45f) {
+            // 这里可以添加移动方向修正逻辑
+            println("[RotationManager] Movement correction: $yawDiff")
         }
     }
     
     @Listener
     fun onTick(event: TickEvent) {
-        if (isRotating) {
+        if (isSilentRotating) {
             updateRotation()
         }
     }
     
     @Listener
     fun onRender(event: RenderEvent) {
-        if (isRotating) {
+        if (isSilentRotating) {
             applyMovementCorrection()
         }
     }
@@ -160,13 +152,10 @@ object RotationManager {
     fun debugInfo(): String {
         return """
             RotationManager Debug:
-            - Target: $targetRotation
-            - Current: $currentRotation
-            - Last: $lastRotation
+            - Server Rotation: $serverRotation
+            - Visual Rotation: $visualRotation
+            - Silent Rotating: $isSilentRotating
             - Speed: $rotationSpeed
-            - Smoothness: $rotationSmoothness
-            - Rotating: $isRotating
-            - Ticks: $rotationTicks
         """.trimIndent()
     }
 }

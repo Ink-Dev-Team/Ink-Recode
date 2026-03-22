@@ -8,7 +8,7 @@ import net.minecraft.client.MinecraftClient
 
 
 open class Module(var name: String, var description: String, var category: Category) {
-    var enabled=false
+    @JvmField var enabled=false
     var key=-1
     val mc= MinecraftClient.getInstance()
     

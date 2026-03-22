@@ -43,11 +43,7 @@ object Thud : Module("Thud", "Target HUD display", Category.RENDER) {
     // 根据生命值获取渐变颜色
     private fun getHealthColor(health: Float, maxHealth: Float): Color {
         val percentage = (health / maxHealth).coerceIn(0f, 1f)
-        return when {
-            percentage <= 0.2 -> ColorManager.error // 低血量 - 红色
-            percentage <= 0.5 -> Color(255, 165, 0) // 中等血量 - 橙色
-            else -> Color(76, 175, 80) // 高血量 - 绿色
-        }
+        return ColorManager.primary
     }
 
     // 渲染事件监听器
@@ -71,35 +67,43 @@ object Thud : Module("Thud", "Target HUD display", Category.RENDER) {
         val target = getKillAuraTarget()
         if (target == null) return
 
+        val windowWidth = mc.window.scaledWidth.toFloat()
+        val windowHeight = mc.window.scaledHeight.toFloat()
+
+
+
+        println(windowWidth);
+        println(windowHeight)
         try {
             // 开始绘制
             Skia.draw { canvas ->
                 // 获取窗口尺寸
-                val windowWidth = mc.window.scaledWidth.toFloat()
-                val windowHeight = mc.window.scaledHeight.toFloat()
-                
+
+
                 // 计算屏幕中心点（准心位置）
                 val centerX = windowWidth / 2f
                 val centerY = windowHeight / 2f
-                
+
+
+                val scale=4.5f;
+
                 // 定义面板位置和尺寸（准心右下角）
-                val offsetX = 15f  // 准心右侧偏移
-                val offsetY = 15f  // 准心下方偏移
-                val boxWidth = 85f  // 面板宽度
-                val boxHeight = 40f // 面板高度
+                val offsetX = 1.5*windowWidth  // 准心右侧偏移
+                val offsetY = 1.5*windowHeight  // 准心下方偏移
+                val boxWidth = (16*scale) // 面板宽度
+                val boxHeight = (9*scale) // 面板高度
                 
                 // 准心右下角位置计算
-                val x = centerX + offsetX
-                val y = centerY + offsetY
+                val x: Double = centerX + offsetX
+                val y: Double = centerY + offsetY
 
                 // 定义颜色
-                val bgColor = Color(ColorManager.surfaceContainerLow.red, ColorManager.surfaceContainerLow.green, ColorManager.surfaceContainerLow.blue, 200)
+                val bgColor = ColorManager.secondaryContainer
                 val borderColor = ColorManager.outline
                 val textColor = ColorManager.onSurface
 
                 // 绘制背景和边框（精致边框）
-                Skia.drawRoundedRect(x, y, x + boxWidth, y + boxHeight, 4f, bgColor)
-                Skia.drawOutline(x, y, boxWidth, boxHeight, 4f, 0.8f, borderColor)
+                Skia.drawRoundedRect(x.toFloat(), y.toFloat(), boxWidth, boxHeight, 4f, bgColor)
 
                 // 获取目标信息
                 val targetName = target.name?.string ?: "Unknown"
@@ -107,37 +111,8 @@ object Thud : Module("Thud", "Target HUD display", Category.RENDER) {
                 val maxHealth = target.maxHealth
                 val distance = mc.player?.distanceTo(target)?.let { String.format("%.1f", it) } ?: "0.0"
                 
-                // 获取生命值颜色
-                val healthColor = getHealthColor(health, maxHealth)
-
-                // 绘制目标名称（缩短过长的名称）
-                val displayName = if (targetName.length > 8) targetName.substring(0, 8) + "..." else targetName
-                Skia.drawText(displayName, x + 6f, y + 14f, textColor, fontBold)
-                
-                // 绘制距离
-                Skia.drawText("§7${distance}m", x + 6f, y + 26f, textColor, fontMedium)
-
-                // 计算生命条参数
-                val healthBarWidth = boxWidth - 12f
-                val healthBarHeight = 2.5f
-                val healthBarX = x + 6f
-                val healthBarY = y + boxHeight - 8f
-
-                // 计算生命条宽度
-                val healthPercentage = (health / maxHealth).coerceIn(0f, 1f)
-                val currentHealthBarWidth = healthBarWidth * healthPercentage
-
-                // 绘制生命条背景和前景
-                Skia.drawRoundedRect(healthBarX, healthBarY, healthBarX + healthBarWidth, healthBarY + healthBarHeight, 2f, ColorManager.surfaceVariant)
-                if (currentHealthBarWidth > 1f) {
-                    Skia.drawRoundedRect(healthBarX, healthBarY, healthBarX + currentHealthBarWidth, healthBarY + healthBarHeight, 2f, healthColor)
-                }
-                
-                // 在生命条上显示生命值百分比
-                val healthText = String.format("%.0f%%", healthPercentage * 100)
-                val textBounds = Skia.getTextBounds(healthText, fontMedium)
-                val textX = healthBarX + healthBarWidth - textBounds.width - 2f
-                Skia.drawText(healthText, textX, healthBarY - 1f, textColor, fontMedium)
+                //draw the fucking container
+                Skia.drawRoundedRect(x.toFloat(),y.toFloat(),120f,90f,10f,bgColor)
             }
         } catch (e: Exception) {
             // 错误处理

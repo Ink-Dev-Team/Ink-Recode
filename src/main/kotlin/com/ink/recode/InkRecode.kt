@@ -8,6 +8,7 @@ import com.ink.recode.modules.impl.render.WaterMark
 import com.ink.recode.modules.impl.render.ClickGUI
 import com.ink.recode.modules.impl.render.Thud
 import com.ink.recode.modules.impl.combat.KillAura
+import com.ink.recode.modules.impl.movement.Scaffold2
 import com.ink.recode.utils.RotationManager
 import com.ink.recode.webgui.HttpServer
 
@@ -21,6 +22,7 @@ object InkRecode : ModInitializer {
 		ModuleManager.register(ClickGUI)
 		ModuleManager.register(Thud)
 		ModuleManager.register(KillAura)
+		ModuleManager.register(Scaffold2)
 		
 		// 注册RotationManager到事件系统
 		EventBus.register(RotationManager)

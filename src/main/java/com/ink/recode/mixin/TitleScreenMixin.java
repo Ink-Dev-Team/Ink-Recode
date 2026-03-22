@@ -14,5 +14,5 @@ import java.awt.Color;
 
 @Mixin(TitleScreen.class)
 public class TitleScreenMixin {
-    // 空实现，不修改标题界面
+    
 }
