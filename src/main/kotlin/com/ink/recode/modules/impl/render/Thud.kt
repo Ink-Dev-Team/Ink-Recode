@@ -9,7 +9,6 @@ import com.ink.recode.modules.impl.combat.KillAura
 import com.ink.recode.render.Skia
 import com.ink.recode.render.SkiaRenderer
 import com.ink.recode.render.FontManager
-import io.github.humbleui.skija.Font
 import net.minecraft.client.MinecraftClient
 import net.minecraft.entity.LivingEntity
 import org.lwjgl.glfw.GLFW
@@ -20,8 +19,8 @@ import java.lang.reflect.Field
 object Thud : Module("Thud", "Target HUD display", Category.RENDER) {
 
     // 加载字体资源（小巧字体）
-    private val fontBold: Font by lazy { FontManager.getBold(14f) }
-    private val fontMedium: Font by lazy { FontManager.getMedium(10f) }
+    private val fontBold by lazy { FontManager.getBold(14f) }
+    private val fontMedium by lazy { FontManager.getMedium(10f) }
 
     // 初始化模块
     init {
@@ -70,20 +69,12 @@ object Thud : Module("Thud", "Target HUD display", Category.RENDER) {
         val windowWidth = mc.window.scaledWidth.toFloat()
         val windowHeight = mc.window.scaledHeight.toFloat()
 
-
-
-        println(windowWidth);
-        println(windowHeight)
         try {
             // 开始绘制
             Skia.draw { canvas ->
-                // 获取窗口尺寸
-
-
                 // 计算屏幕中心点（准心位置）
                 val centerX = windowWidth / 2f
                 val centerY = windowHeight / 2f
-
 
                 val scale=4.5f;
 
@@ -103,7 +94,7 @@ object Thud : Module("Thud", "Target HUD display", Category.RENDER) {
                 val textColor = ColorManager.onSurface
 
                 // 绘制背景和边框（精致边框）
-                Skia.drawRoundedRect(x.toFloat(), y.toFloat(), boxWidth, boxHeight, 4f, bgColor)
+                Skia.drawRoundRect(x.toFloat(), y.toFloat(), boxWidth, boxHeight, 4f, bgColor)
 
                 // 获取目标信息
                 val targetName = target.name?.string ?: "Unknown"
@@ -112,7 +103,7 @@ object Thud : Module("Thud", "Target HUD display", Category.RENDER) {
                 val distance = mc.player?.distanceTo(target)?.let { String.format("%.1f", it) } ?: "0.0"
                 
                 //draw the fucking container
-                Skia.drawRoundedRect(x.toFloat(),y.toFloat(),120f,90f,10f,bgColor)
+                Skia.drawRoundRect(x.toFloat(), y.toFloat(), 120f, 90f, 10f, bgColor)
             }
         } catch (e: Exception) {
             // 错误处理

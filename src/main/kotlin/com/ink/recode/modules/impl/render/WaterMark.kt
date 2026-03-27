@@ -7,14 +7,13 @@ import com.ink.recode.event.events.RenderEvent
 import com.ink.recode.render.Skia
 import com.ink.recode.render.SkiaRenderer
 import com.ink.recode.render.FontManager
-import io.github.humbleui.skija.Font
 import org.lwjgl.glfw.GLFW
 import java.awt.Color
 
 object WaterMark : Module("WaterMark", "Display client watermark on screen", Category.RENDER) {
 
-    private val fontRegular: Font by lazy { FontManager.getBorel(80f) }
-    private val fontMedium: Font by lazy { FontManager.getMedium(24f) }
+    private val fontRegular by lazy { FontManager.getBorel(80f) }
+    private val fontMedium by lazy { FontManager.getMedium(24f) }
 
     init {
         this.enabled = true
@@ -43,7 +42,7 @@ object WaterMark : Module("WaterMark", "Display client watermark on screen", Cat
                 val fps = mc.currentFps
                 val userName = mc.session?.username ?: "Unknown"
 
-                Skia.drawText("ink recode",x,y,Color(255,255,255),fontRegular)
+                Skia.drawText("ink recode", x, y + 60f, Color(255, 255, 255), fontRegular, 80f)
             }
         } catch (e: Exception) {
             println("[WaterMark] Error rendering: ${e.message}")

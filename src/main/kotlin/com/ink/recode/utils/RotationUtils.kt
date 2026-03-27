@@ -1,6 +1,8 @@
 package com.ink.recode.utils
 
 import net.minecraft.client.MinecraftClient
+import net.minecraft.util.math.BlockPos
+import net.minecraft.util.Direction
 import net.minecraft.entity.Entity
 import net.minecraft.util.math.MathHelper
 import net.minecraft.util.math.Vec3d
@@ -70,8 +72,8 @@ object RotationUtils {
     fun getRotation(entity: Entity): Rotation {
         val player = mc.player ?: return Rotation.ZERO
         
-        val playerEyeHeight = player.getEyeHeight(player.pose).toDouble()
-        val entityEyeHeight = (entity as? net.minecraft.entity.LivingEntity)?.getEyeHeight(entity.pose)?.toDouble() ?: 1.0
+        val playerEyeHeight = player.eyeHeight
+        val entityEyeHeight = (entity as? net.minecraft.entity.LivingEntity)?.eyeHeight ?: 1.0
         
         val eyesPos = Vec3d(player.x, player.y + playerEyeHeight, player.z)
         val targetPos = Vec3d(entity.x, entity.y + entityEyeHeight, entity.z)
@@ -92,5 +94,34 @@ object RotationUtils {
     
     fun isClose(rotation1: Rotation, rotation2: Rotation, tolerance: Float = 1.0f): Boolean {
         return getDistance(rotation1, rotation2) <= tolerance
+    }
+    
+    fun calculate(pos: BlockPos, direction: Direction): Rotation {
+        val player = mc.player ?: return Rotation.ZERO
+        val eyesPos = Vec3d(player.x, player.y + player.eyeHeight, player.z)
+        val blockCenter = Vec3d(pos.x + 0.5, pos.y + 0.5, pos.z + 0.5)
+        
+        // 计算朝向方块的向量
+        val lookVec = blockCenter.subtract(eyesPos).normalize()
+        
+        // 计算 yaw 和 pitch
+        val yaw = Math.toDegrees(Math.atan2(lookVec.z, lookVec.x)) - 90.0
+        val pitch = -Math.toDegrees(Math.atan2(lookVec.y, Math.sqrt(lookVec.x * lookVec.x + lookVec.z * lookVec.z)))
+        
+        return Rotation(yaw.toFloat(), pitch.toFloat())
+    }
+    
+    fun calculate(pos: Vec3d): Rotation {
+        val player = mc.player ?: return Rotation.ZERO
+        val eyesPos = Vec3d(player.x, player.y + player.eyeHeight, player.z)
+        
+        // 计算朝向目标点的向量
+        val lookVec = pos.subtract(eyesPos).normalize()
+        
+        // 计算 yaw 和 pitch
+        val yaw = Math.toDegrees(Math.atan2(lookVec.z, lookVec.x)) - 90.0
+        val pitch = -Math.toDegrees(Math.atan2(lookVec.y, Math.sqrt(lookVec.x * lookVec.x + lookVec.z * lookVec.z)))
+        
+        return Rotation(yaw.toFloat(), pitch.toFloat())
     }
 }

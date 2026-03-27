@@ -6,13 +6,10 @@ import com.ink.recode.event.Listener
 import com.ink.recode.event.events.RenderEvent
 import com.ink.recode.event.events.TickEvent
 import com.ink.recode.render.FontManager
-import com.ink.recode.render.Skia
-import com.ink.recode.render.SkiaRenderer
 import com.ink.recode.utils.RotationManager
 import com.ink.recode.utils.RotationUtils
 import com.ink.recode.value.BooleanValue
 import com.ink.recode.value.NumberValue
-import io.github.humbleui.skija.Font
 import net.minecraft.client.MinecraftClient
 import net.minecraft.entity.Entity
 import net.minecraft.entity.LivingEntity
@@ -33,7 +30,7 @@ enum class SortPriority {
 
 object KillAura : Module("KillAura", "Automatic attack module", Category.COMBAT) {
 
-    private val font: Font by lazy { FontManager.getBold(20f) }
+    private val font by lazy { FontManager.getBold(20f) }
 
     private var attackMode = AttackMode.SINGLE
     private var sortPriority = SortPriority.DISTANCE
@@ -43,14 +40,14 @@ object KillAura : Module("KillAura", "Automatic attack module", Category.COMBAT)
     
     // SilentRotation 配置
     private val silentRotationEnabled = BooleanValue("SilentRotation", true, "启用静音旋转")
-    private val rotationSpeed = NumberValue("RotationSpeed", 10f, 1f, 30f, 1f, "旋转速度")
-    private val rotationSmoothness = NumberValue("RotationSmoothness", 5f, 1f, 20f, 1f, "旋转平滑度")
+    private val rotationSpeed = NumberValue("RotationSpeed", 10.0, 1.0, 30.0, 1.0, "旋转速度")
+    private val rotationSmoothness = NumberValue("RotationSmoothness", 5.0, 1.0, 20.0, 1.0, "旋转平滑度")
     private val silentRotationMode = BooleanValue("SilentRotationMode", true, "静音旋转模式")
     
     // 1.9 Mode 配置
     private val mode19Enabled = BooleanValue("1.9Mode", false, "启用1.9模式")
-    private val cpsMin = NumberValue("CPSMin", 8f, 1f, 20f, 0.5f, "最小每秒攻击次数")
-    private val cpsMax = NumberValue("CPSMax", 12f, 1f, 20f, 0.5f, "最大每秒攻击次数")
+    private val cpsMin = NumberValue("CPSMin", 8.0, 1.0, 20.0, 0.5, "最小每秒攻击次数")
+    private val cpsMax = NumberValue("CPSMax", 12.0, 1.0, 20.0, 0.5, "最大每秒攻击次数")
     
     init {
         this.enabled = true
@@ -105,7 +102,7 @@ object KillAura : Module("KillAura", "Automatic attack module", Category.COMBAT)
         // SilentRotation 集成
         if (silentRotationEnabled.get() && target != null) {
             val targetRotation = RotationUtils.getRotation(target!!)
-            RotationManager.setRotations(targetRotation, rotationSpeed.get(), rotationSmoothness.get())
+            RotationManager.setRotations(targetRotation, rotationSpeed.get().toFloat(), rotationSmoothness.get().toFloat())
         } else if (!silentRotationEnabled.get()) {
             RotationManager.reset()
         }
@@ -146,18 +143,18 @@ object KillAura : Module("KillAura", "Automatic attack module", Category.COMBAT)
 
         return world.entities
             .filterIsInstance<LivingEntity>()
-            .filter { entity ->
-                entity != player &&
-                        entity.isAlive &&
-                        player.canSee(entity) &&
-                        entity.distanceTo(player) <= range &&
+            .filter {
+                it != player &&
+                        it.isAlive &&
+                        player.canSee(it) &&
+                        it.distanceTo(player) <= range &&
                         // 修复：MathHelper.cos 参数类型 - 转为 Float
-                        calculateFOV(playerRotationVec, player, entity) >= MathHelper.cos(Math.toRadians(fov / 2.0).toFloat())
+                        calculateFOV(playerRotationVec, player, it) >= MathHelper.cos(Math.toRadians(fov / 2.0).toFloat())
             }
-            .sortedBy { entity ->
+            .sortedBy {
                 when (sortPriority) {
-                    SortPriority.DISTANCE -> entity.distanceTo(player)
-                    SortPriority.HEALTH -> entity.health
+                    SortPriority.DISTANCE -> it.distanceTo(player)
+                    SortPriority.HEALTH -> it.health
                 }
             }
             .toList()

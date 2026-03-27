@@ -7,12 +7,19 @@ import com.ink.recode.value.Value
 import net.minecraft.client.MinecraftClient
 
 
-open class Module(var name: String, var description: String, var category: Category) {
+open class Module(@JvmField var name: String, var description: String, var category: Category) {
     @JvmField var enabled=false
-    var key=-1
+    @JvmField var key=-1
     val mc= MinecraftClient.getInstance()
     
-    val values = mutableListOf<Value<*>>()
+    @JvmField val values = mutableListOf<Value<*>>()
+    
+    enum class BindMode {
+        TOGGLE,
+        HOLD
+    }
+    
+    @JvmField var bindMode = BindMode.TOGGLE
     
     open fun onTick()
     {

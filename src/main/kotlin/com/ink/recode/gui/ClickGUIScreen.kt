@@ -1,444 +1,305 @@
 package com.ink.recode.gui
 
 import com.ink.recode.Category
-import com.ink.recode.ColorManager
 import com.ink.recode.Module
 import com.ink.recode.ModuleManager
 import com.ink.recode.render.FontManager
 import com.ink.recode.render.Skia
-import com.ink.recode.render.SkiaRenderer
+import com.ink.recode.utils.RotationManager
 import com.ink.recode.value.BooleanValue
-import com.ink.recode.value.NumberValue
 import com.ink.recode.value.ModeValue
-import io.github.humbleui.skija.Canvas
-import io.github.humbleui.skija.Font
+import com.ink.recode.value.NumberValue
 import net.minecraft.client.MinecraftClient
+import net.minecraft.client.font.TextRenderer
 import net.minecraft.client.gui.DrawContext
 import net.minecraft.client.gui.screen.Screen
 import net.minecraft.text.Text
 import org.lwjgl.glfw.GLFW
-
-val Category.displayName: String
-    get() = when (this) {
-        Category.COMBAT -> "战斗"
-        Category.MOVEMENT -> "移动"
-        Category.RENDER -> "渲染"
-        Category.PLAYER -> "玩家"
-    }
+import java.awt.Color
+import kotlin.math.floor
 
 class ClickGUIScreen : Screen(Text.literal("ClickGUI")) {
     
-    private val font: Font by lazy { FontManager.getBold(14f) }
-    private val titleFont: Font by lazy { FontManager.getMedium(20f) }
+    private val modules = ModuleManager.modules
+    private val categories = Category.values()
+    private val categoryWidth = 120
+    private val categoryHeight = 20
+    private val moduleHeight = 18
+    private val categorySpacing = 10
+    private val categoryX = 20
+    private val categoryY = 20
     
-    private val themeColor = ColorManager.primary
-    private val hoverColor = ColorManager.primaryContainer
-    private val backgroundColor = ColorManager.surfaceContainer
-    private val cardColor = ColorManager.surfaceContainerHigh
-    private val textColor = ColorManager.onSurface
-    private val disabledColor = ColorManager.onSurfaceVariant
+    // 颜色设置
+    private val backgroundColor = Color(30, 30, 30, 200)
+    private val categoryColor = Color(40, 40, 40, 220)
+    private val moduleColor = Color(50, 50, 50, 200)
+    private val moduleEnabledColor = Color(100, 100, 255, 200)
+    private val textColor = Color(255, 255, 255, 255)
+    private val hoverColor = Color(60, 60, 60, 200)
     
-    private var selectedCategory: Category = Category.COMBAT
-    private var selectedModule: Module? = null
+    // 鼠标位置
+    private var mouseX = 0
+    private var mouseY = 0
     
-    private var windowX = 100f
-    private var windowY = 100f
-    private var windowWidth = 700f
-    private var windowHeight = 500f
+    // 展开的分类
+    private val expandedCategories = mutableSetOf<Category>()
     
-    private var isDragging = false
-    private var dragOffsetX = 0f
-    private var dragOffsetY = 0f
+    // 正在编辑的数值
+    private var editingValue: NumberValue? = null
+    private var editingModule: Module? = null
     
-    private var scrollOffset = 0f
-    private var maxScroll = 0f
+    // 字体大小
+    private val fontSize = 14f
     
-    override fun init() {
-        super.init()
-        if (!SkiaRenderer.isInitialized()) {
-            SkiaRenderer.init()
-        }
-    }
+    // 字体
+    private val font by lazy { FontManager.getRegular(fontSize) }
+    private val fontBold by lazy { FontManager.getBold(fontSize) }
     
     override fun render(context: DrawContext, mouseX: Int, mouseY: Int, delta: Float) {
-        renderBackground(context, mouseX, mouseY, delta)
+        this.mouseX = mouseX
+        this.mouseY = mouseY
         
-        if (SkiaRenderer.isInitialized()) {
-            Skia.draw { canvas ->
-                drawWindow(canvas, mouseX.toFloat(), mouseY.toFloat())
-            }
-        }
+        // 渲染背景
+        Skia.drawRoundRect(0f, 0f, width.toFloat(), height.toFloat(), 0f, backgroundColor)
         
-        super.render(context, mouseX, mouseY, delta)
-    }
-    
-    override fun renderBackground(context: DrawContext, mouseX: Int, mouseY: Int, delta: Float) {
-        context.fill(0, 0, width, height, 0x90000000.toInt())
-    }
-    
-    private fun drawWindow(canvas: Canvas, mouseX: Float, mouseY: Float) {
-        val scale = MinecraftClient.getInstance().window.scaleFactor.toFloat()
-        val scaledX = mouseX / scale
-        val scaledY = mouseY / scale
-        
-        Skia.drawRoundedRect(windowX, windowY, windowWidth, windowHeight, 12f, backgroundColor)
-        Skia.drawOutline(windowX, windowY, windowWidth, windowHeight, 12f, 1f, ColorManager.outline)
-        
-        drawTitleBar(canvas, scaledX, scaledY)
-        drawCategories(canvas, scaledX, scaledY)
-        drawModuleList(canvas, scaledX, scaledY)
-        
-        if (selectedModule != null) {
-            drawSettingsPanel(canvas, scaledX, scaledY)
-        }
-    }
-    
-    private fun drawTitleBar(canvas: Canvas, mouseX: Float, mouseY: Float) {
-        Skia.drawRoundedRect(windowX, windowY, windowWidth, 40f, 12f, themeColor)
-        Skia.drawText("ClickGUI", windowX + 15f, windowY + 27f, textColor, titleFont)
-        
-        val closeX = windowX + windowWidth - 35f
-        val closeY = windowY + 10f
-        val isHovered = isMouseOver(closeX, closeY, 25f, 20f, mouseX, mouseY)
-        
-        Skia.drawRoundedRect(closeX, closeY, 25f, 20f, 5f, if (isHovered) ColorManager.error else ColorManager.errorContainer)
-        Skia.drawText("X", closeX + 8f, closeY + 15f, ColorManager.onError, font)
-    }
-    
-    private fun drawCategories(canvas: Canvas, mouseX: Float, mouseY: Float) {
-        val categories = Category.values()
-        val categoryWidth = 100f
-        val categoryHeight = 30f
-        val categoryGap = 8f
-        val startX = windowX + 15f
-        val startY = windowY + 50f
-        
+        // 渲染分类
         categories.forEachIndexed { index, category ->
-            val x = startX + index * (categoryWidth + categoryGap)
-            val y = startY
+            val x = categoryX + (categoryWidth + categorySpacing) * index
+            val y = categoryY
             
-            val isHovered = isMouseOver(x, y, categoryWidth, categoryHeight, mouseX, mouseY)
-            val color = when {
-                selectedCategory == category -> themeColor
-                isHovered -> hoverColor
-                else -> cardColor
+            // 渲染分类背景
+            val isExpanded = expandedCategories.contains(category)
+            val categoryBackground = if (isExpanded) categoryColor.brighter() else categoryColor
+            Skia.drawRoundRect(x.toFloat(), y.toFloat(), categoryWidth.toFloat(), categoryHeight.toFloat(), 4f, categoryBackground)
+            
+            // 渲染分类名称
+            val categoryText = "${category.name}"
+            val textWidth = Skia.getTextWidth(categoryText, fontBold, fontSize)
+            val textX = (x + (categoryWidth - textWidth) / 2).toFloat()
+            val textY = (y + (categoryHeight - fontSize) / 2).toFloat()
+            Skia.drawText(categoryText, textX, textY + fontSize, textColor, fontBold, fontSize)
+            
+            // 渲染展开/收起按钮
+            val arrowText = if (isExpanded) "▼" else "▶"
+            val arrowWidth = Skia.getTextWidth(arrowText, font, fontSize)
+            val arrowX = (x + categoryWidth - arrowWidth - 5).toFloat()
+            val arrowY = (y + (categoryHeight - fontSize) / 2).toFloat()
+            Skia.drawText(arrowText, arrowX, arrowY + fontSize, textColor, font, fontSize)
+            
+            // 渲染模块
+            if (isExpanded) {
+                val categoryModules = modules.filter { it.category == category }
+                categoryModules.forEachIndexed { moduleIndex, module ->
+                    val moduleY = y + categoryHeight + moduleIndex * moduleHeight
+                    
+                    // 渲染模块背景
+                    val moduleBackground = if (isHovering(x, moduleY, categoryWidth, moduleHeight)) {
+                        hoverColor
+                    } else if (module.enabled) {
+                        moduleEnabledColor
+                    } else {
+                        moduleColor
+                    }
+                    Skia.drawRoundRect(x.toFloat(), moduleY.toFloat(), categoryWidth.toFloat(), moduleHeight.toFloat(), 2f, moduleBackground)
+                    
+                    // 渲染模块名称
+                    val moduleText = module.name
+                    val moduleTextWidth = Skia.getTextWidth(moduleText, font, fontSize)
+                    val moduleTextX = (x + 5).toFloat()
+                    val moduleTextY = (moduleY + (moduleHeight - fontSize) / 2).toFloat()
+                    Skia.drawText(moduleText, moduleTextX, moduleTextY + fontSize, textColor, font, fontSize)
+                    
+                    // 渲染模块状态
+                    val stateText = if (module.enabled) "ON" else "OFF"
+                    val stateTextWidth = Skia.getTextWidth(stateText, font, fontSize)
+                    val stateTextX = (x + categoryWidth - stateTextWidth - 5).toFloat()
+                    val stateTextY = (moduleY + (moduleHeight - fontSize) / 2).toFloat()
+                    Skia.drawText(stateText, stateTextX, stateTextY + fontSize, textColor, font, fontSize)
+                    
+                    // 渲染模块设置
+                    if (module.enabled && module.values.isNotEmpty()) {
+                        module.values.forEachIndexed { valueIndex, value ->
+                            val valueY = moduleY + moduleHeight + valueIndex * moduleHeight
+                            
+                            // 渲染设置背景
+                            val valueBackground = if (isHovering(x, valueY, categoryWidth, moduleHeight)) {
+                                hoverColor
+                            } else {
+                                moduleColor.darker()
+                            }
+                            Skia.drawRoundRect(x.toFloat(), valueY.toFloat(), categoryWidth.toFloat(), moduleHeight.toFloat(), 2f, valueBackground)
+                            
+                            // 渲染设置名称
+                            val valueText = value.name
+                            val valueTextWidth = Skia.getTextWidth(valueText, font, fontSize)
+                            val valueTextX = (x + 5).toFloat()
+                            val valueTextY = (valueY + (moduleHeight - fontSize) / 2).toFloat()
+                            Skia.drawText(valueText, valueTextX, valueTextY + fontSize, textColor, font, fontSize)
+                            
+                            // 渲染设置值
+                            when (value) {
+                                is BooleanValue -> {
+                                    val boolText = if (value.get()) "ON" else "OFF"
+                                    val boolTextWidth = Skia.getTextWidth(boolText, font, fontSize)
+                                    val boolTextX = (x + categoryWidth - boolTextWidth - 5).toFloat()
+                                    val boolTextY = (valueY + (moduleHeight - fontSize) / 2).toFloat()
+                                    Skia.drawText(boolText, boolTextX, boolTextY + fontSize, textColor, font, fontSize)
+                                }
+                                is NumberValue -> {
+                                    val numText = value.get().toString()
+                                    val numTextWidth = Skia.getTextWidth(numText, font, fontSize)
+                                    val numTextX = (x + categoryWidth - numTextWidth - 5).toFloat()
+                                    val numTextY = (valueY + (moduleHeight - fontSize) / 2).toFloat()
+                                    Skia.drawText(numText, numTextX, numTextY + fontSize, textColor, font, fontSize)
+                                }
+                                is ModeValue -> {
+                                    val modeText = value.current
+                                    val modeTextWidth = Skia.getTextWidth(modeText, font, fontSize)
+                                    val modeTextX = (x + categoryWidth - modeTextWidth - 5).toFloat()
+                                    val modeTextY = (valueY + (moduleHeight - fontSize) / 2).toFloat()
+                                    Skia.drawText(modeText, modeTextX, modeTextY + fontSize, textColor, font, fontSize)
+                                }
+                            }
+                        }
+                    }
+                }
             }
-            
-            Skia.drawRoundedRect(x, y, categoryWidth, categoryHeight, 6f, color)
-            Skia.drawText(category.displayName, x + 10f, y + 21f, textColor, font)
-        }
-    }
-    
-    private fun drawModuleList(canvas: Canvas, mouseX: Float, mouseY: Float) {
-        val modules = ModuleManager.modules.filter { it.category == selectedCategory }
-        if (modules.isEmpty()) {
-            val emptyText = "No modules in ${selectedCategory.displayName}"
-            val textBounds = Skia.getTextBounds(emptyText, font)
-            val textWidth = textBounds.width
-            Skia.drawText(emptyText, windowX + windowWidth / 2f - textWidth / 2f, windowY + 100f, disabledColor, font)
-            return
         }
         
-        val moduleWidth = 280f
-        val moduleHeight = 35f
-        val moduleGap = 6f
-        val startX = windowX + 15f
-        val startY = windowY + 90f
-        
-        val visibleModules = modules.take(12)
-        val totalHeight = visibleModules.size * (moduleHeight + moduleGap)
-        maxScroll = (modules.size - visibleModules.size) * (moduleHeight + moduleGap)
-        
-        visibleModules.forEachIndexed { index, module ->
-            val y = startY + index * (moduleHeight + moduleGap) - scrollOffset
+        // 渲染编辑中的数值
+        editingValue?.let { value ->
+            val module = editingModule ?: return@let
+            val category = module.category
+            val categoryIndex = categories.indexOf(category)
+            val x = categoryX + (categoryWidth + categorySpacing) * categoryIndex
+            val categoryModules = modules.filter { it.category == category }
+            val moduleIndex = categoryModules.indexOf(module)
+            val moduleY = categoryY + categoryHeight + moduleIndex * moduleHeight
+            val valueIndex = module.values.indexOf(value)
+            val valueY = moduleY + moduleHeight + valueIndex * moduleHeight
             
-            if (y < windowY + 40f) return@forEachIndexed
-            if (y + moduleHeight > windowY + windowHeight - 40f) return@forEachIndexed
+            // 渲染数值编辑框
+            Skia.drawRoundRect(x.toFloat(), valueY.toFloat(), categoryWidth.toFloat(), moduleHeight.toFloat(), 2f, Color(70, 70, 70, 200))
             
-            val isHovered = isMouseOver(startX, y, moduleWidth, moduleHeight, mouseX, mouseY)
-            val isSelected = selectedModule == module
-            val color = when {
-                isSelected -> themeColor
-                isHovered -> hoverColor
-                else -> cardColor
-            }
+            // 渲染数值名称
+            val valueText = value.name
+            val valueTextWidth = Skia.getTextWidth(valueText, font, fontSize)
+            val valueTextX = (x + 5).toFloat()
+            val valueTextY = (valueY + (moduleHeight - fontSize) / 2).toFloat()
+            Skia.drawText(valueText, valueTextX, valueTextY + fontSize, textColor, font, fontSize)
             
-            Skia.drawRoundedRect(startX, y, moduleWidth, moduleHeight, 6f, color)
-            Skia.drawText(module.name, startX + 12f, y + 23f, textColor, font)
-            
-            val statusX = startX + moduleWidth - 50f
-            val statusColor = if (module.enabled) ColorManager.primary else ColorManager.error
-            val statusText = if (module.enabled) "ON" else "OFF"
-            Skia.drawText(statusText, statusX, y + 23f, statusColor, font)
+            // 渲染数值输入
+            val numText = value.get().toString()
+            val numTextWidth = Skia.getTextWidth(numText, fontBold, fontSize)
+            val numTextX = (x + categoryWidth - numTextWidth - 5).toFloat()
+            val numTextY = (valueY + (moduleHeight - fontSize) / 2).toFloat()
+            Skia.drawText(numText, numTextX, numTextY + fontSize, Color(100, 100, 255, 255), fontBold, fontSize)
         }
-        
-        if (modules.size > 12) {
-            drawScrollBar(canvas, mouseX, mouseY)
-        }
-    }
-    
-    private fun drawScrollBar(canvas: Canvas, mouseX: Float, mouseY: Float) {
-        val barWidth = 8f
-        val barHeight = windowHeight - 140f
-        val barX = windowX + windowWidth - 25f
-        val barY = windowY + 90f
-        
-        Skia.drawRoundedRect(barX, barY, barWidth, barHeight, 4f, cardColor)
-        
-        val scrollRatio = scrollOffset / maxScroll.coerceAtLeast(1f)
-        val handleHeight = (barHeight * 12f / ModuleManager.modules.size).coerceAtLeast(20f)
-        val handleY = barY + scrollRatio * (barHeight - handleHeight)
-        
-        Skia.drawRoundedRect(barX, handleY, barWidth, handleHeight, 4f, themeColor)
-    }
-    
-    private fun drawSettingsPanel(canvas: Canvas, mouseX: Float, mouseY: Float) {
-        val module = selectedModule ?: return
-        val panelWidth = 320f
-        val panelHeight = windowHeight - 100f
-        val panelX = windowX + windowWidth - panelWidth - 15f
-        val panelY = windowY + 50f
-        
-        Skia.drawRoundedRect(panelX, panelY, panelWidth, panelHeight, 8f, backgroundColor)
-        Skia.drawOutline(panelX, panelY, panelWidth, panelHeight, 8f, 1f, ColorManager.outline)
-        
-        Skia.drawText("${module.name} Settings", panelX + 15f, panelY + 25f, textColor, titleFont)
-        
-        val values = module.values
-        if (values.isEmpty()) {
-            Skia.drawText("No settings available", panelX + 15f, panelY + 60f, disabledColor, font)
-            return
-        }
-        
-        var valueY = panelY + 50f
-        values.forEach { value ->
-            if (valueY > panelY + panelHeight - 20f) return@forEach
-            
-            when (value) {
-                is BooleanValue -> drawBooleanValue(canvas, value, panelX + 15f, valueY, mouseX, mouseY)
-                is NumberValue -> drawNumberValue(canvas, value, panelX + 15f, valueY, mouseX, mouseY)
-                is ModeValue -> drawModeValue(canvas, value, panelX + 15f, valueY, mouseX, mouseY)
-            }
-            valueY += 45f
-        }
-    }
-    
-    private fun drawBooleanValue(canvas: Canvas, value: BooleanValue, x: Float, y: Float, mouseX: Float, mouseY: Float) {
-        val switchWidth = 40f
-        val switchHeight = 20f
-        val isHovered = isMouseOver(x, y, switchWidth, switchHeight, mouseX, mouseY)
-        
-        Skia.drawText(value.name, x, y + 15f, textColor, font)
-        
-        val switchColor = if (value.get()) ColorManager.primary else ColorManager.surfaceVariant
-        Skia.drawRoundedRect(x + 200f, y, switchWidth, switchHeight, 10f, switchColor)
-        
-        val indicatorX = if (value.get()) x + 220f else x + 205f
-        Skia.drawRoundedRect(indicatorX, y + 2f, 16f, 16f, 8f, ColorManager.onPrimary)
-    }
-    
-    private fun drawNumberValue(canvas: Canvas, value: NumberValue, x: Float, y: Float, mouseX: Float, mouseY: Float) {
-        val sliderWidth = 180f
-        val sliderHeight = 8f
-        
-        Skia.drawText(value.name, x, y + 15f, textColor, font)
-        Skia.drawText(String.format("%.1f", value.get()), x + 240f, y + 15f, themeColor, font)
-        
-        val progress = (value.get() - value.min) / (value.max - value.min).coerceAtLeast(0.01f)
-        val filledWidth = sliderWidth * progress.coerceIn(0f, 1f)
-        
-        Skia.drawRoundedRect(x + 200f, y + 10f, sliderWidth, sliderHeight, 4f, ColorManager.surfaceVariant)
-        Skia.drawRoundedRect(x + 200f, y + 10f, filledWidth, sliderHeight, 4f, themeColor)
-    }
-    
-    private fun drawModeValue(canvas: Canvas, value: ModeValue, x: Float, y: Float, mouseX: Float, mouseY: Float) {
-        val dropdownWidth = 150f
-        val dropdownHeight = 25f
-        
-        Skia.drawText(value.name, x, y + 15f, textColor, font)
-        
-        Skia.drawRoundedRect(x + 200f, y, dropdownWidth, dropdownHeight, 5f, cardColor)
-        Skia.drawOutline(x + 200f, y, dropdownWidth, dropdownHeight, 5f, 1f, ColorManager.outline)
-        
-        val currentMode = value.current
-        Skia.drawText(currentMode, x + 210f, y + 17f, textColor, font)
-    }
-    
-    private fun isMouseOver(x: Float, y: Float, width: Float, height: Float, mouseX: Float, mouseY: Float): Boolean {
-        return mouseX >= x && mouseX <= x + width && mouseY >= y && mouseY <= y + height
     }
     
     override fun mouseClicked(mouseX: Double, mouseY: Double, button: Int): Boolean {
-        val scale = MinecraftClient.getInstance().window.scaleFactor.toFloat()
-        val scaledX = mouseX.toFloat() / scale
-        val scaledY = mouseY.toFloat() / scale
-        
         if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
-            if (handleTitleBarClick(scaledX, scaledY)) return true
-            if (handleCategoryClick(scaledX, scaledY)) return true
-            if (handleModuleClick(scaledX, scaledY)) return true
-            if (handleSettingsClick(scaledX, scaledY)) return true
+            categories.forEachIndexed { index, category ->
+                val x = categoryX + (categoryWidth + categorySpacing) * index
+                val y = categoryY
+                
+                // 检查是否点击了分类
+                if (isHovering(x, y, categoryWidth, categoryHeight)) {
+                    if (expandedCategories.contains(category)) {
+                        expandedCategories.remove(category)
+                    } else {
+                        expandedCategories.add(category)
+                    }
+                    return true
+                }
+                
+                // 检查是否点击了模块
+                if (expandedCategories.contains(category)) {
+                    val categoryModules = modules.filter { it.category == category }
+                    categoryModules.forEachIndexed { moduleIndex, module ->
+                        val moduleY = y + categoryHeight + moduleIndex * moduleHeight
+                        
+                        if (isHovering(x, moduleY, categoryWidth, moduleHeight)) {
+                            module.toggle()
+                            return true
+                        }
+                        
+                        // 检查是否点击了模块设置
+                        if (module.enabled && module.values.isNotEmpty()) {
+                            module.values.forEachIndexed { valueIndex, value ->
+                                val valueY = moduleY + moduleHeight + valueIndex * moduleHeight
+                                
+                                if (isHovering(x, valueY, categoryWidth, moduleHeight)) {
+                                    when (value) {
+                                        is BooleanValue -> {
+                                            value.toggle()
+                                        }
+                                        is NumberValue -> {
+                                            editingValue = value
+                                            editingModule = module
+                                        }
+                                        is ModeValue -> {
+                                            value.next()
+                                        }
+                                    }
+                                    return true
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
         
         return super.mouseClicked(mouseX, mouseY, button)
     }
     
-    private fun handleTitleBarClick(mouseX: Float, mouseY: Float): Boolean {
-        if (isMouseOver(windowX, windowY, windowWidth, 40f, mouseX, mouseY)) {
-            val closeX = windowX + windowWidth - 35f
-            val closeY = windowY + 10f
-            
-            if (isMouseOver(closeX, closeY, 25f, 20f, mouseX, mouseY)) {
-                close()
-                return true
-            }
-            
-            isDragging = true
-            dragOffsetX = mouseX - windowX
-            dragOffsetY = mouseY - windowY
-            return true
-        }
-        return false
-    }
-    
-    private fun handleCategoryClick(mouseX: Float, mouseY: Float): Boolean {
-        val categories = Category.values()
-        val categoryWidth = 100f
-        val categoryHeight = 30f
-        val categoryGap = 8f
-        val startX = windowX + 15f
-        val startY = windowY + 50f
-        
-        categories.forEachIndexed { index, category ->
-            val x = startX + index * (categoryWidth + categoryGap)
-            val y = startY
-            
-            if (isMouseOver(x, y, categoryWidth, categoryHeight, mouseX, mouseY)) {
-                selectedCategory = category
-                selectedModule = null
-                scrollOffset = 0f
-                return true
-            }
-        }
-        return false
-    }
-    
-    private fun handleModuleClick(mouseX: Float, mouseY: Float): Boolean {
-        val modules = ModuleManager.modules.filter { it.category == selectedCategory }
-        if (modules.isEmpty()) return false
-        
-        val moduleWidth = 280f
-        val moduleHeight = 35f
-        val moduleGap = 6f
-        val startX = windowX + 15f
-        val startY = windowY + 90f
-        
-        val visibleModules = modules.take(12)
-        visibleModules.forEachIndexed { index, module ->
-            val y = startY + index * (moduleHeight + moduleGap) - scrollOffset
-            
-            if (y < windowY + 40f) return@forEachIndexed
-            if (y + moduleHeight > windowY + windowHeight - 40f) return@forEachIndexed
-            
-            if (isMouseOver(startX, y, moduleWidth, moduleHeight, mouseX, mouseY)) {
-                selectedModule = module
-                return true
-            }
-        }
-        
-        return false
-    }
-    
-    private fun handleSettingsClick(mouseX: Float, mouseY: Float): Boolean {
-        val module = selectedModule ?: return false
-        val panelWidth = 320f
-        val panelHeight = windowHeight - 100f
-        val panelX = windowX + windowWidth - panelWidth - 15f
-        val panelY = windowY + 50f
-        
-        val values = module.values
-        if (values.isEmpty()) return false
-        
-        var valueY = panelY + 50f
-        values.forEach { value ->
-            if (valueY > panelY + panelHeight - 20f) return@forEach
-            
-            when (value) {
-                is BooleanValue -> {
-                    val switchWidth = 40f
-                    val switchHeight = 20f
-                    if (isMouseOver(panelX + 200f, valueY, switchWidth, switchHeight, mouseX, mouseY)) {
-                        value.set(!value.get())
-                        return true
-                    }
-                }
-                is NumberValue -> {
-                    val sliderWidth = 180f
-                    val sliderHeight = 8f
-                    if (isMouseOver(panelX + 200f, valueY + 10f, sliderWidth, sliderHeight, mouseX, mouseY)) {
-                        val progress = (mouseX - (panelX + 200f)) / sliderWidth
-                        val newValue = value.min + progress * (value.max - value.min)
-                        value.set(newValue.coerceIn(value.min, value.max))
-                        return true
-                    }
-                }
-                is ModeValue -> {
-                    val dropdownWidth = 150f
-                    val dropdownHeight = 25f
-                    if (isMouseOver(panelX + 200f, valueY, dropdownWidth, dropdownHeight, mouseX, mouseY)) {
-                        val currentIndex = value.get()
-                        val nextIndex = (currentIndex + 1) % value.options.size
-                        value.set(nextIndex)
-                        return true
-                    }
-                }
-            }
-            valueY += 45f
-        }
-        
-        return false
-    }
-    
-    override fun mouseReleased(mouseX: Double, mouseY: Double, button: Int): Boolean {
-        if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
-            isDragging = false
-        }
-        return super.mouseReleased(mouseX, mouseY, button)
-    }
-    
-    override fun mouseDragged(mouseX: Double, mouseY: Double, button: Int, deltaX: Double, deltaY: Double): Boolean {
-        if (isDragging && button == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
-            val scale = MinecraftClient.getInstance().window.scaleFactor.toFloat()
-            windowX = (mouseX / scale).toFloat() - dragOffsetX
-            windowY = (mouseY / scale).toFloat() - dragOffsetY
-            return true
-        }
-        return super.mouseDragged(mouseX, mouseY, button, deltaX, deltaY)
-    }
-    
     override fun mouseScrolled(mouseX: Double, mouseY: Double, horizontalAmount: Double, verticalAmount: Double): Boolean {
-        val scale = MinecraftClient.getInstance().window.scaleFactor.toFloat()
-        val scaledX = mouseX / scale
-        val scaledY = mouseY / scale
-        
-        if (scaledX > windowX + windowWidth - 50f && scaledX < windowX + windowWidth) {
-            if (scaledY > windowY + 90f && scaledY < windowY + windowHeight - 50f) {
-                scrollOffset = (scrollOffset - verticalAmount.toFloat() * 20f).coerceIn(0f, maxScroll)
-                return true
-            }
-        }
+        // 处理鼠标滚轮
         return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount)
     }
     
-    override fun close() {
-        val mc = MinecraftClient.getInstance()
-        if (com.ink.recode.modules.impl.render.ClickGUI.enabled) {
-            com.ink.recode.modules.impl.render.ClickGUI.enabled = false
+    override fun keyPressed(keyCode: Int, scanCode: Int, modifiers: Int): Boolean {
+        if (editingValue != null) {
+            when (keyCode) {
+                GLFW.GLFW_KEY_ESCAPE -> {
+                    editingValue = null
+                    editingModule = null
+                    return true
+                }
+                GLFW.GLFW_KEY_ENTER -> {
+                    editingValue = null
+                    editingModule = null
+                    return true
+                }
+                GLFW.GLFW_KEY_UP -> {
+                    editingValue?.add()
+                    return true
+                }
+                GLFW.GLFW_KEY_DOWN -> {
+                    editingValue?.sub()
+                    return true
+                }
+            }
         }
-        mc.setScreen(null)
+        
+        return super.keyPressed(keyCode, scanCode, modifiers)
     }
     
-    override fun shouldCloseOnEsc(): Boolean {
-        return true
+    override fun charTyped(chars: Char, modifiers: Int): Boolean {
+        if (editingValue != null) {
+            // 处理字符输入
+        }
+        
+        return super.charTyped(chars, modifiers)
+    }
+    
+    override fun close() {
+        RotationManager.reset()
+        super.close()
+    }
+    
+    private fun isHovering(x: Int, y: Int, width: Int, height: Int): Boolean {
+        return mouseX >= x && mouseX <= x + width && mouseY >= y && mouseY <= y + height
     }
 }

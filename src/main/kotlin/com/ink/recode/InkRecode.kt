@@ -24,11 +24,14 @@ object InkRecode : ModInitializer {
 		ModuleManager.register(KillAura)
 		ModuleManager.register(Scaffold2)
 		
+		// 初始化渲染系统
+		com.ink.recode.render.SkiaRenderer.init()
+		
 		// 注册RotationManager到事件系统
 		EventBus.register(RotationManager)
 		
 		// 启动WebGUI HTTP服务器
-		HttpServer.start()
+		HttpServer(8080)
 		
 		logger.info("InkRecode initialized successfully")
 	}
