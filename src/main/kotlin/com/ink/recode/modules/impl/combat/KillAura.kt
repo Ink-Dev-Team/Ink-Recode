@@ -39,15 +39,14 @@ object KillAura : Module("KillAura", "Automatic attack module", Category.COMBAT)
     private val fov: Float by lazy { 180f }
     
     // SilentRotation 配置
-    private val silentRotationEnabled = BooleanValue("SilentRotation", true, "启用静音旋转")
-    private val rotationSpeed = NumberValue("RotationSpeed", 10.0, 1.0, 30.0, 1.0, "旋转速度")
-    private val rotationSmoothness = NumberValue("RotationSmoothness", 5.0, 1.0, 20.0, 1.0, "旋转平滑度")
-    private val silentRotationMode = BooleanValue("SilentRotationMode", true, "静音旋转模式")
-    
-    // 1.9 Mode 配置
+    private val silentRotationEnabled = BooleanValue("SilentRotation", true, "")
+    private val rotationSpeed = NumberValue("RotationSpeed", 10.0, 1.0, 30.0, 1.0, "")
+    private val rotationSmoothness = NumberValue("RotationSmoothness", 5.0, 1.0, 20.0, 1.0, "")
+    private val silentRotationMode = BooleanValue("SilentRotationMode", true, "")
+
     private val mode19Enabled = BooleanValue("1.9Mode", false, "启用1.9模式")
-    private val cpsMin = NumberValue("CPSMin", 8.0, 1.0, 20.0, 0.5, "最小每秒攻击次数")
-    private val cpsMax = NumberValue("CPSMax", 12.0, 1.0, 20.0, 0.5, "最大每秒攻击次数")
+    private val cpsMin = NumberValue("CPSMin", 17.0, 1.0, 20.0, 0.5, "最小每秒攻击次数")
+    private val cpsMax = NumberValue("CPSMax", 20.0, 1.0, 20.0, 0.5, "最大每秒攻击次数")
     
     init {
         this.enabled = true
@@ -121,7 +120,6 @@ object KillAura : Module("KillAura", "Automatic attack module", Category.COMBAT)
                     nextAttackTime = currentTime + minDelay + (Math.random() * (maxDelay - minDelay)).toLong()
                 }
             } else {
-                // 传统模式: 使用攻击冷却
                 if (attackTimer <= 0) {
                     attackTarget(target!!)
                     attackTimer = attackSpeed
@@ -138,7 +136,6 @@ object KillAura : Module("KillAura", "Automatic attack module", Category.COMBAT)
         val world = minecraft.world ?: return emptyList()
         val player = minecraft.player ?: return emptyList()
 
-        // 获取玩家视角向量
         val playerRotationVec = getRotationVector(player.yaw, player.pitch)
 
         return world.entities
@@ -148,7 +145,6 @@ object KillAura : Module("KillAura", "Automatic attack module", Category.COMBAT)
                         it.isAlive &&
                         player.canSee(it) &&
                         it.distanceTo(player) <= range &&
-                        // 修复：MathHelper.cos 参数类型 - 转为 Float
                         calculateFOV(playerRotationVec, player, it) >= MathHelper.cos(Math.toRadians(fov / 2.0).toFloat())
             }
             .sortedBy {

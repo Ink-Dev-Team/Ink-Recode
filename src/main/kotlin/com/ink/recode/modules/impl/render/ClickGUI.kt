@@ -2,8 +2,6 @@ package com.ink.recode.modules.impl.render
 
 import com.ink.recode.Category
 import com.ink.recode.Module
-import com.ink.recode.event.Listener
-import com.ink.recode.event.events.KeyboardEvent
 import com.ink.recode.gui.clickgui.ClickGuiScreen
 import com.ink.recode.value.BooleanValue
 import com.ink.recode.value.ColorValue
@@ -14,19 +12,17 @@ import java.awt.Color
 
 object ClickGUI : Module("ClickGUI", "Click GUI for module management", Category.RENDER) {
 
-    // ClickGUI settings
-    @JvmField val backgroundColor = ColorValue("BackgroundColor", Color(40, 40, 40), "Background color of the ClickGUI")
-    @JvmField val expandedBackgroundColor = ColorValue("ExpandedBackgroundColor", Color(30, 30, 30), "Background color of expanded modules")
+    @JvmField val backgroundColor = ColorValue("BackgroundColor", Color(35, 35, 45), "Background color of the ClickGUI")
+    @JvmField val expandedBackgroundColor = ColorValue("ExpandedBackgroundColor", Color(25, 25, 35), "Background color of expanded modules")
     @JvmField val guiScale = NumberValue("GuiScale", 1.0, 0.5, 2.0, 0.1, "Scale of the ClickGUI")
-    @JvmField val fontSize = NumberValue("FontSize", 12.0, 8.0, 20.0, 1.0, "Font size of the ClickGUI")
+    @JvmField val fontSize = NumberValue("FontSize", 13.0, 8.0, 20.0, 0.5, "Font size of the ClickGUI")
     @JvmField val backgroundBlur = BooleanValue("BackgroundBlur", false, "Enable background blur")
     @JvmField val blurStrength = NumberValue("BlurStrength", 5.0, 1.0, 10.0, 0.5, "Strength of the background blur")
 
     init {
-        this.enabled = false
-        this.key = GLFW.GLFW_KEY_O
-        
-        // Register settings
+        enabled = false
+        key = GLFW.GLFW_KEY_O
+
         values.add(backgroundColor)
         values.add(expandedBackgroundColor)
         values.add(guiScale)
@@ -35,39 +31,19 @@ object ClickGUI : Module("ClickGUI", "Click GUI for module management", Category
         values.add(blurStrength)
     }
 
-    @Listener
-    fun onKey(event: KeyboardEvent) {
-        if (event.key == key) {
-            val mc = MinecraftClient.getInstance()
-            println("[ClickGUI] Key pressed, toggling...")
-            toggle()
-        }
-    }
-
     override fun onEnable() {
-        println("[ClickGUI] onEnable called")
+        if(MinecraftClient.getInstance().currentScreen==null){
         val mc = MinecraftClient.getInstance()
-        println("[ClickGUI] MinecraftClient: $mc")
-        val screen = ClickGuiScreen()
-        println("[ClickGUI] ClickGuiScreen created: $screen")
-        mc.setScreen(screen)
-        println("[ClickGUI] Screen set to ClickGuiScreen")
-        println("[ClickGUI] Current screen: ${mc.currentScreen}")
+        mc.setScreen(ClickGuiScreen())}
     }
 
     override fun onDisable() {
-        println("[ClickGUI] onDisable called")
         val mc = MinecraftClient.getInstance()
-        println("[ClickGUI] Current screen: ${mc.currentScreen}")
         if (mc.currentScreen is ClickGuiScreen) {
-            println("[ClickGUI] Closing ClickGuiScreen")
             mc.setScreen(null)
-        } else {
-            println("[ClickGUI] Current screen is not ClickGuiScreen")
         }
     }
 
-    // Helper methods for settings
     @JvmStatic
     fun getGuiScale(): Double {
         return guiScale.get()
@@ -81,22 +57,12 @@ object ClickGUI : Module("ClickGUI", "Click GUI for module management", Category
     @JvmStatic
     fun color(alpha: Int): Color {
         val c = backgroundColor.get()
-        return Color(c.red, c.green, c.blue, alpha)
+        return Color(255, 167, 157, alpha)
     }
 
     @JvmStatic
     fun color2(alpha: Int): Color {
-        return Color(100, 100, 255, alpha)
-    }
-
-    // Getter for enabled property
-    @JvmStatic
-    fun getEnabled(): Boolean {
-        return enabled
-    }
-
-    @JvmStatic
-    fun setEnabled(enabled: Boolean) {
-        this.enabled = enabled
+        return Color(64, 198, 255, alpha)
     }
 }
+//67676767676767767676767676767676767767676767676767767767767767767767767767767767767767767767767767767767767767767767767767767767767767767767767767767767767767767767767767767767767767767767767767767767767767767767
